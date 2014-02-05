@@ -8,6 +8,7 @@
 #include <ClState.h>
 #include <oclUtils.h>
 #include <shrQATest.h>
+#include <CL/cl.h>
 
 
 ClState::ClState(bool bEnableProfile, bool verbose, bool log) :
