@@ -12,6 +12,7 @@
 #include <vector>
 #include <CL/cl.h>
 #include "multithreading.h"
+
 #define MAX_KERNEL_COUNT 16
 
 /*

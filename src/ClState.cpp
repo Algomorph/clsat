@@ -8,12 +8,12 @@
 #include <ClState.h>
 #include <oclUtils.h>
 #include <shrQATest.h>
-#include <CL/cl.h>
+
 
 
 ClState::ClState(bool bEnableProfile, bool verbose, bool log) :
-		cpPlatform(NULL), cdDevices(NULL), execDevices(NULL), ciErrNum(
-		CL_SUCCESS), ciDeviceCount(0), engagedBarrier(false) {
+		cpPlatform(NULL), cdDevices(NULL), execDevices(NULL), ciDeviceCount(0),
+		ciErrNum(CL_SUCCESS),  engagedBarrier(false) {
 
 	cl_int ciErrNum = CL_SUCCESS;
 
