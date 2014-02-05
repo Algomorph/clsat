@@ -525,7 +525,7 @@ char* oclLoadProgSource(const char* cFilename, const char* cPreamble, size_t* sz
 //! @param cxGPUContext         OpenCL context
 //! @param device_idx            index of the device of interest
 //////////////////////////////////////////////////////////////////////////////
-cl_device_id oclGetDev(cl_context cxGPUContext, unsigned int nr)
+cl_device_id oclGetDev(cl_context cxGPUContext, unsigned int device_idx)
 {
     size_t szParmDataBytes;
     cl_device_id* cdDevices;
@@ -533,7 +533,7 @@ cl_device_id oclGetDev(cl_context cxGPUContext, unsigned int nr)
     // get the list of GPU devices associated with context
     clGetContextInfo(cxGPUContext, CL_CONTEXT_DEVICES, 0, NULL, &szParmDataBytes);
     
-    if( szParmDataBytes / sizeof(cl_device_id) <= nr ) {
+    if( szParmDataBytes / sizeof(cl_device_id) <= device_idx ) {
       return (cl_device_id)-1;
     }
     
@@ -541,7 +541,7 @@ cl_device_id oclGetDev(cl_context cxGPUContext, unsigned int nr)
 
     clGetContextInfo(cxGPUContext, CL_CONTEXT_DEVICES, szParmDataBytes, cdDevices, NULL);
     
-    cl_device_id device = cdDevices[nr];
+    cl_device_id device = cdDevices[device_idx];
     free(cdDevices);
 
     return device;
