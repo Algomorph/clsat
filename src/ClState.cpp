@@ -9,8 +9,6 @@
 #include <oclUtils.h>
 #include <shrQATest.h>
 
-
-
 ClState::ClState(bool bEnableProfile, bool verbose, bool log) :
 		cpPlatform(NULL), cdDevices(NULL), execDevices(NULL), ciDeviceCount(0),
 		ciErrNum(CL_SUCCESS),  engagedBarrier(false) {

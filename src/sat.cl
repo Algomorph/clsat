@@ -337,67 +337,6 @@ void algSAT_stage4(__global float *g_out,
 
 }
 
-
-//-- Host ---------------------------------------------------------------------
-
-__kernel
-void algSAT( dvector<float>& d_out,
-             dvector<float>& d_ybar,
-             dvector<float>& d_vhat,
-             dvector<float>& d_ysum,
-             const dvector<float>& d_in ) {
-
-	const int nWm = (c_width+MTS-1)/MTS, nHm = (c_height+MTS-1)/MTS;
-    const uint3 cg_img = (uint3)( c_m_size, c_n_size, 1);
-    const uint3 cg_ybar = (uint3)( nWm, 1, 1 );
-    const uint3 cg_vhat = (uint3)( 1, nHm,1 );
-
-    algSAT_stage1<<< cg_img, dim3(WS, SOW) >>>( d_in, d_ybar, d_vhat );
-
-    algSAT_stage2<<< cg_ybar, dim3(WS, MW) >>>( d_ybar, d_ysum );
-
-    algSAT_stage3<<< cg_vhat, dim3(WS, MW) >>>( d_ysum, d_vhat );
-
-    algSAT_stage4<<< cg_img, dim3(WS, SOW) >>>( d_out, d_in, d_ybar, d_vhat );
-
-}
-
-__kernel
-void algSAT(__global float* input,
-			__global float* putput,
-			__global float* d_vhat,
-            __global float* d_ysum ) {
-
-	const int nWm = (c_width+MTS-1)/MTS, nHm = (c_height+MTS-1)/MTS;
-    const uint3 cg_img=(uint)( c_m_size, c_n_size,1 );
-    const uint3 cg_ybar=(uint)( nWm, 1,1 );
-    const uint3 cg_vhat=(uint)( 1, nHm,1 );
-
-    algSAT_stage1<<< cg_img, dim3(WS, SOW) >>>( d_inout, d_ybar, d_vhat );
-
-    algSAT_stage2<<< cg_ybar, dim3(WS, MW) >>>( d_ybar, d_ysum );
-
-    algSAT_stage3<<< cg_vhat, dim3(WS, MW) >>>( d_ysum, d_vhat );
-
-    algSAT_stage4<<< cg_img, dim3(WS, SOW) >>>( d_inout, d_ybar, d_vhat );
-
-}
-
-__kernel
-void algSAT( float *h_inout,
-             const int& w,
-             const int& h ) {
-
-    dvector<float> d_out, d_ybar, d_vhat, d_ysum;
-
-    prepare_algSAT( algs, d_out, d_ybar, d_vhat, d_ysum, h_inout, w, h );
-
-    algSAT( d_out, d_ybar, d_vhat, d_ysum );
-
-    d_out.copy_to( h_inout, algs.width, algs.height, w, h );
-
-}
-
 //=============================================================================
 } // namespace gpufilter
 //=============================================================================

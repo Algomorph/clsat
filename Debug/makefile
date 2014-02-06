@@ -20,6 +20,9 @@ endif
 ifneq ($(strip $(C_DEPS)),)
 -include $(C_DEPS)
 endif
+ifneq ($(strip $(CL_DEPS)),)
+-include $(CL_DEPS)
+endif
 ifneq ($(strip $(CC_DEPS)),)
 -include $(CC_DEPS)
 endif
@@ -51,7 +54,7 @@ clsat: $(OBJS) $(USER_OBJS)
 
 # Other Targets
 clean:
-	-$(RM) $(OBJS)$(C++_DEPS)$(C_DEPS)$(CC_DEPS)$(CPP_DEPS)$(EXECUTABLES)$(CXX_DEPS)$(C_UPPER_DEPS) clsat
+	-$(RM) $(OBJS)$(C++_DEPS)$(C_DEPS)$(CL_DEPS)$(CC_DEPS)$(CPP_DEPS)$(EXECUTABLES)$(CXX_DEPS)$(C_UPPER_DEPS) clsat
 	-@echo ' '
 
 .PHONY: all clean dependents
