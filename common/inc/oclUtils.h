@@ -195,5 +195,7 @@ inline void __oclCheckErrorEX(cl_int iSample, cl_int iReference, void (*pCleanup
     }
 }
 
+
+
 #endif
 

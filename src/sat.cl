@@ -9,8 +9,8 @@
 #define BORDER 1
 #define CARRY_WIDTH 1
 #define CARRY_HEIGHT 1
-#define inv_width 1.0F
-#define inv_height 1.0F
+#define INV_WIDTH 1.0F
+#define INV_HEIGHT 1.0F
 #endif
 
 #include <gpudefs.h>

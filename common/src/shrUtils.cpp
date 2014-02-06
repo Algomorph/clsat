@@ -24,7 +24,6 @@
 #include <vector>
 #include <fstream>
 #include <stdio.h>
-#include <CL/cl.h>
 
 using namespace std;
 
@@ -517,89 +516,6 @@ int shrLog(const char* cFormatString = "", ...) {
 	return ret;
 }
 
-/**
- *This is a helper function that will load the OpenCL source program, build and return a handle to that OpenCL kernel
- * @param cxGPUContext
- * @param cdDevices
- * @param cpProgram
- * @param sourcePath
- * @return
- */
-int compileOCLKernel(cl_context cxGPUContext, cl_device_id cdDevices,
-		cl_program *cpProgram, const char* sourcePath, const char* options) {
-	cl_int ciErrNum;
-
-	size_t program_length;
-	oclCheckError(sourcePath != NULL, shrTRUE);
-	char *source = oclLoadProgSource(sourcePath, "", &program_length);
-	if (!source) {
-		shrLog("Error: Failed to load compute program %s!\n", sourcePath);
-		return -2000;
-	}
-
-	// create the simple increment OpenCL program
-	*cpProgram = clCreateProgramWithSource(cxGPUContext, 1,
-			(const char **) &source, &program_length, &ciErrNum);
-	if (ciErrNum != CL_SUCCESS) {
-		shrLog("Error: Failed to create program\n");
-		return ciErrNum;
-	} else {
-		shrLog("clCreateProgramWithSource <%s> succeeded, program_length=%d\n",
-				sourcePath, program_length);
-	}
-	free(source);
-
-	// build the program
-	cl_build_status build_status;
-
-	ciErrNum = clBuildProgram(*cpProgram, 0, NULL,
-			"-cl-fast-relaxed-math -cl-nv-verbose", NULL, NULL);
-	if (ciErrNum != CL_SUCCESS) {
-		// write out standard error, Build Log and PTX, then return error
-		shrLogEx(LOGBOTH | ERRORMSG, ciErrNum, STDERROR);
-		oclLogBuildInfo(*cpProgram, oclGetFirstDev(cxGPUContext));
-		oclLogPtx(*cpProgram, oclGetFirstDev(cxGPUContext),
-				"oclMultiThreads.ptx");
-		return ciErrNum;
-	} else {
-		shrLog("clBuildProgram <%s> succeeded\n", sourcePath);
-		ciErrNum = clGetProgramBuildInfo(*cpProgram, cdDevices,
-		CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status,
-		NULL);
-		shrLog("clGetProgramBuildInfo returned: ");
-		if (build_status == CL_SUCCESS) {
-			shrLog("CL_SUCCESS\n");
-		} else {
-			shrLog("CLErrorNumber = %d\n", ciErrNum);
-		}
-	}
-
-	// print out the build log, note in the case where there is nothing shown, some OpenCL PTX->SASS caching has happened
-	{
-		char *build_log;
-		size_t ret_val_size;
-		ciErrNum = clGetProgramBuildInfo(*cpProgram, cdDevices,
-		CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
-		if (ciErrNum != CL_SUCCESS) {
-			shrLog(
-					"clGetProgramBuildInfo device %d, failed to get the log size at line %d\n",
-					cdDevices, __LINE__);
-		}
-		build_log = (char *) malloc(ret_val_size + 1);
-		ciErrNum = clGetProgramBuildInfo(*cpProgram, cdDevices,
-		CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
-		if (ciErrNum != CL_SUCCESS) {
-			shrLog(
-					"clGetProgramBuildInfo device %d, failed to get the build log at line %d\n",
-					cdDevices, __LINE__);
-		}
-		// to be carefully, terminate with \0
-		// there's no information in the reference whether the string is 0 terminated or not
-		build_log[ret_val_size] = '\0';
-		shrLog("%s\n", build_log);
-	}
-	return 0;
-}
 
 //////////////////////////////////////////////////////////////////////////////
 //! Find the path for a file assuming that
