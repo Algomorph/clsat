@@ -19,7 +19,7 @@ typedef struct _alg_setup {
 void generateConstants( satConstants& algs,
                      const int& w,
                      const int& h );
-void algSAT(float *h_inout,
+void computeSummedAreaTable(float *h_inout,
         const int& w,
         const int& h);
 

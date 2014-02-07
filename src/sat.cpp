@@ -10,7 +10,7 @@
 #include <string>
 #include <iostream>
 #include <oclUtils.h>
-#include <ClState.h>
+#include <ClState.hpp>
 #include <gpudefs.h>
 #include <boost/lexical_cast.hpp>
 namespace sat{
@@ -21,13 +21,13 @@ void generateConstants( satConstants& sc,
 
     sc.width = w;
     sc.height = h;
-    sc.m_size = (w+WS-1)/WS;
-    sc.n_size = (h+WS-1)/WS;
+    sc.m_size = (w+WARP_SIZE-1)/WARP_SIZE;
+    sc.n_size = (h+WARP_SIZE-1)/WARP_SIZE;
     sc.last_m = sc.m_size-1;
     sc.last_n = sc.n_size-1;
     sc.border = 0;
-    sc.carry_width = sc.m_size*WS;
-    sc.carry_height = sc.n_size*WS;
+    sc.carry_width = sc.m_size*WARP_SIZE;
+    sc.carry_height = sc.n_size*WARP_SIZE;
     sc.carry_height = h;
     sc.inv_width = 1.f/(float)w;
     sc.inv_height = 1.f/(float)h;
@@ -55,7 +55,7 @@ genSatClDefineOptions( const satConstants& sc ) {
     defineSymbol("INV_HEIGHT",boost::lexical_cast<std::string>(sc.inv_height));
 }
 
-void prepare_algSAT( satConstants& sc,
+void prepareSAT( satConstants& sc,
                      float* d_inout,
                      float* d_ybar,
                      float* d_vhat,
@@ -64,14 +64,6 @@ void prepare_algSAT( satConstants& sc,
                      const int& w,
                      const int& h ) {
 
-    sc.width = w;
-    sc.height = h;
-
-    if( w % 32 > 0 ) sc.width += (32 - (w % 32));
-    if( h % 32 > 0 ) sc.height += (32 - (h % 32));
-
-    generateConstants( sc, sc.width, sc.height );
-    genSatClDefineOptions( sc );
 
     //d_inout.copy_from( h_in, w, h, algs.width, algs.height );
     //d_ybar.resize( algs.n_size * algs.width );
@@ -80,17 +72,35 @@ void prepare_algSAT( satConstants& sc,
 
 }
 
-void algSAT( float* h_inout,
+void computeSummedAreaTable( float* h_inout,
         const int& w,
-        const int& h ) {
-	satConstants algs;
-	float* d_out, *d_ybar, *d_vhat, *d_ysum;
-	prepare_algSAT( algs, d_out, d_ybar, d_vhat, d_ysum, h_inout, w, h );
-
-
+        const int& h,
+        CLState& state) {
+	satConstants sc;
+	//float* d_out, *d_ybar, *d_vhat, *d_ysum;
+	sc.width = w;
+	sc.height = h;
+	//pad so the matrix dimensions are multiples of 32
+	if( w % WARP_SIZE > 0 ) sc.width += (WARP_SIZE - (w % WARP_SIZE));
+	if( h % WARP_SIZE > 0 ) sc.height += (WARP_SIZE - (h % WARP_SIZE));
+	generateConstants( sc, sc.width, sc.height );
+	std::string defineOptions = genSatClDefineOptions( sc );
+	cl_program program = state.compileOCLProgram("sat.cl",defineOptions);
 }
 } //end namespace sat
 
 int main(int argc, char** argv){
-	ClState state(true);
+	// start the logs
+	shrSetLogFileName ("clsat.log");
+	const int in_w = 1024, in_h = 1024;
+	float* in_gpu = new float[in_w*in_h];
+	std::cout << "[sat2] Generating random input image (" << in_w << "x"
+	              << in_h << ") ... " << std::flush;
+	for (int i = 0; i < in_w*in_h; ++i)
+	        in_gpu[i] = rand() % 256;
+	std::cout << "done!\n[sat2] Computing summed-area table in the GPU ... "
+	              << std::flush;
+	CLState state(true);
+	sat::computeSummedAreaTable( in_gpu, in_w, in_h, state);
+
 }

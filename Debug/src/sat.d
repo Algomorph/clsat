@@ -8,7 +8,7 @@ src/sat.d: ../src/sat.cpp /home/algomorph/Factory/clsat/include/sat.h \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_gl.h \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_gl_ext.h \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_ext.h \
- /home/algomorph/Factory/clsat/include/ClState.h \
+ /home/algomorph/Factory/clsat/include/ClState.hpp \
  /home/algomorph/Factory/clsat/include/multithreading.h
 
 /home/algomorph/Factory/clsat/include/sat.h:
@@ -31,6 +31,6 @@ src/sat.d: ../src/sat.cpp /home/algomorph/Factory/clsat/include/sat.h \
 
 /home/algomorph/Factory/clsat/common/inc/CL/cl_ext.h:
 
-/home/algomorph/Factory/clsat/include/ClState.h:
+/home/algomorph/Factory/clsat/include/ClState.hpp:
 
 /home/algomorph/Factory/clsat/include/multithreading.h:

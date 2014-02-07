@@ -8,7 +8,7 @@
  * is strictly prohibited.
  *
  */
- 
+
 #ifndef OCL_UTILS_H
 #define OCL_UTILS_H
 
@@ -21,9 +21,9 @@
 
 // All OpenCL headers
 #if defined (__APPLE__) || defined(MACOSX)
-    #include <OpenCL/opencl.h>
+#include <OpenCL/opencl.h>
 #else
-    #include <CL/opencl.h>
+#include <CL/opencl.h>
 #endif 
 
 // Includes
@@ -34,20 +34,20 @@
 // For systems with CL_EXT that are not updated with these extensions, we copied these
 // extensions from <CL/cl_ext.h>
 #ifndef CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV
-  /* cl_nv_device_attribute_query extension - no extension #define since it has no functions */
-  #define CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV       0x4000
-  #define CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV       0x4001
-  #define CL_DEVICE_REGISTERS_PER_BLOCK_NV            0x4002
-  #define CL_DEVICE_WARP_SIZE_NV                      0x4003
-  #define CL_DEVICE_GPU_OVERLAP_NV                    0x4004
-  #define CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV            0x4005
-  #define CL_DEVICE_INTEGRATED_MEMORY_NV              0x4006
+/* cl_nv_device_attribute_query extension - no extension #define since it has no functions */
+#define CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV       0x4000
+#define CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV       0x4001
+#define CL_DEVICE_REGISTERS_PER_BLOCK_NV            0x4002
+#define CL_DEVICE_WARP_SIZE_NV                      0x4003
+#define CL_DEVICE_GPU_OVERLAP_NV                    0x4004
+#define CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV            0x4005
+#define CL_DEVICE_INTEGRATED_MEMORY_NV              0x4006
 #endif
 
 // reminders for build output window and log
 #ifdef _WIN32
-    #pragma message ("Note: including shrUtils.h")
-    #pragma message ("Note: including opencl.h")
+#pragma message ("Note: including shrUtils.h")
+#pragma message ("Note: including opencl.h")
 #endif
 
 // SDK Revision #
@@ -110,7 +110,8 @@ extern "C" cl_device_id oclGetFirstDev(cl_context cxGPUContext);
 //! @param cxGPUContext         OpenCL context
 //! @param device_idx            index of the device of interest
 //////////////////////////////////////////////////////////////////////////////
-extern "C" cl_device_id oclGetDev(cl_context cxGPUContext, unsigned int device_idx);
+extern "C" cl_device_id oclGetDev(cl_context cxGPUContext,
+		unsigned int device_idx);
 
 //////////////////////////////////////////////////////////////////////////////
 //! Gets the id of device with maximal FLOPS from the context
@@ -128,7 +129,8 @@ extern "C" cl_device_id oclGetMaxFlopsDev(cl_context cxGPUContext);
 //! @param cPreamble        code that is prepended to the loaded file, typically a set of #defines or a header
 //! @param szFinalLength    returned length of the code string
 //////////////////////////////////////////////////////////////////////////////
-extern "C" char* oclLoadProgSource(const char* cFilename, const char* cPreamble, size_t* szFinalLength);
+extern "C" char* oclLoadProgSource(const char* cFilename, const char* cPreamble,
+		size_t* szFinalLength);
 
 //////////////////////////////////////////////////////////////////////////////
 //! Get the binary (PTX) of the program associated with the device
@@ -138,7 +140,8 @@ extern "C" char* oclLoadProgSource(const char* cFilename, const char* cPreamble,
 //! @param binary       returned code
 //! @param length       length of returned code
 //////////////////////////////////////////////////////////////////////////////
-extern "C" void oclGetProgBinary( cl_program cpProgram, cl_device_id cdDevice, char** binary, size_t* length);
+extern "C" void oclGetProgBinary(cl_program cpProgram, cl_device_id cdDevice,
+		char** binary, size_t* length);
 
 //////////////////////////////////////////////////////////////////////////////
 //! Get and log the binary (PTX) from the OpenCL compiler for the requested program & device
@@ -147,7 +150,8 @@ extern "C" void oclGetProgBinary( cl_program cpProgram, cl_device_id cdDevice, c
 //! @param cdDevice                    device of interest
 //! @param const char*  cPtxFileName   optional PTX file name
 //////////////////////////////////////////////////////////////////////////////
-extern "C" void oclLogPtx(cl_program cpProgram, cl_device_id cdDevice, const char* cPtxFileName);
+extern "C" void oclLogPtx(cl_program cpProgram, cl_device_id cdDevice,
+		const char* cPtxFileName);
 
 //////////////////////////////////////////////////////////////////////////////
 //! Get and log the Build Log from the OpenCL compiler for the requested program & device
@@ -171,31 +175,26 @@ extern "C" const char* oclImageFormatString(cl_uint uiImageFormat);
 
 // companion inline function for error checking and exit on error WITH Cleanup Callback (if supplied)
 // *********************************************************************
-inline void __oclCheckErrorEX(cl_int iSample, cl_int iReference, void (*pCleanup)(int), const char* cFile, const int iLine)
-{
-    // An error condition is defined by the sample/test value not equal to the reference
-    if (iReference != iSample)
-    {
-        // If the sample/test value isn't equal to the ref, it's an error by defnition, so override 0 sample/test value
-        iSample = (iSample == 0) ? -9999 : iSample; 
+inline void __oclCheckErrorEX(cl_int iSample, cl_int iReference,
+		void (*pCleanup)(int), const char* cFile, const int iLine) {
+	// An error condition is defined by the sample/test value not equal to the reference
+	if (iReference != iSample) {
+		// If the sample/test value isn't equal to the ref, it's an error by defnition, so override 0 sample/test value
+		iSample = (iSample == 0) ? -9999 : iSample;
 
-        // Log the error info
-        shrLog("\n !!! Error # %i (%s) at line %i , in file %s !!!\n\n", iSample, oclErrorString(iSample), iLine, cFile);
+		// Log the error info
+		shrLog("\n !!! Error # %i (%s) at line %i , in file %s !!!\n\n",
+				iSample, oclErrorString(iSample), iLine, cFile);
 
-        // Cleanup and exit, or just exit if no cleanup function pointer provided.  Use iSample (error code in this case) as process exit code.
-        if (pCleanup != NULL)
-        {
-            pCleanup(iSample);
-        }
-        else 
-        {
-            shrLogEx(LOGBOTH | CLOSELOG, 0, "Exiting...\n");
-            exit(iSample);
-        }
-    }
+		// Cleanup and exit, or just exit if no cleanup function pointer provided.  Use iSample (error code in this case) as process exit code.
+		if (pCleanup != NULL) {
+			pCleanup(iSample);
+		} else {
+			shrLogEx(LOGBOTH | CLOSELOG, 0, "Exiting...\n");
+			exit(iSample);
+		}
+	}
 }
-
-
 
 #endif
 

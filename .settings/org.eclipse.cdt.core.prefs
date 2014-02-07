@@ -1,0 +1,8 @@
+eclipse.preferences.version=1
+environment/project/cdt.managedbuild.config.gnu.exe.debug.650420349/append=true
+environment/project/cdt.managedbuild.config.gnu.exe.debug.650420349/appendContributed=true
+environment/project/cdt.managedbuild.config.gnu.exe.release.2001287120/CONFIG_NAME/delimiter=\:
+environment/project/cdt.managedbuild.config.gnu.exe.release.2001287120/CONFIG_NAME/operation=append
+environment/project/cdt.managedbuild.config.gnu.exe.release.2001287120/CONFIG_NAME/value=${config_name}
+environment/project/cdt.managedbuild.config.gnu.exe.release.2001287120/append=true
+environment/project/cdt.managedbuild.config.gnu.exe.release.2001287120/appendContributed=true

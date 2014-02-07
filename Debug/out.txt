@@ -1,0 +1,78 @@
+[sat2] Generating random input image (1024x1024) ... done!
+[sat2] Computing summed-area table in the GPU ... clCreateProgramWithSource <sat.cl> succeeded, program_length=7997
+
+ !!! Error # -11 at file ../src/ClState.cpp, line 121
+
+
+-----------------------------------------------------------
+
+Build Log:
+:75:19: error: illegal implicit conversion between two pointers with different address spaces
+                        float *bdata = s_block[tx];
+                                       ^~~~~~~~~~~
+:75:11: warning: initializing 'float *' with an expression of type 'float __attribute__((address_space(3))) [33]' discards qualifiers
+                        float *bdata = s_block[tx];
+                               ^       ~~~~~~~~~~~
+:225:19: error: illegal implicit conversion between two pointers with different address spaces
+                        float *bdata = s_block[tx];
+                                       ^~~~~~~~~~~
+:225:11: warning: initializing 'float *' with an expression of type 'float __attribute__((address_space(3))) [33]' discards qualifiers
+                        float *bdata = s_block[tx];
+                               ^       ~~~~~~~~~~~
+:262:6: error: conflicting types for 'algSAT_stage4'
+void algSAT_stage4(__global float *g_out, __global const float *g_in,
+     ^
+:177:6: note: previous definition is here
+void algSAT_stage4(__global float *g_inout, __global const float *g_y,
+     ^
+:262:6: warning: attribute declaration must precede definition
+void algSAT_stage4(__global float *g_out, __global const float *g_in,
+     ^
+:177:6: note: previous definition is here
+void algSAT_stage4(__global float *g_inout, __global const float *g_y,
+     ^
+:309:19: error: illegal implicit conversion between two pointers with different address spaces
+                        float *bdata = s_block[tx];
+                                       ^~~~~~~~~~~
+:309:11: warning: initializing 'float *' with an expression of type 'float __attribute__((address_space(3))) [33]' discards qualifiers
+                        float *bdata = s_block[tx];
+                               ^       ~~~~~~~~~~~
+
+-----------------------------------------------------------
+
+
+Writing ptx to separate file: build_error.ptx ...
+
+[sat2] Generating random input image (1024x1024) ... done!
+[sat2] Computing summed-area table in the GPU ... clCreateProgramWithSource <sat.cl> succeeded, program_length=8141
+
+ !!! Error # -11 at file ../src/ClState.cpp, line 121
+
+
+-----------------------------------------------------------
+
+Build Log:
+:262:6: error: conflicting types for 'algSAT_stage4'
+void algSAT_stage4(__global float *g_out, __global const float *g_in,
+     ^
+:177:6: note: previous definition is here
+void algSAT_stage4(__global float *g_inout, __global const float *g_y,
+     ^
+:262:6: warning: attribute declaration must precede definition
+void algSAT_stage4(__global float *g_out, __global const float *g_in,
+     ^
+:177:6: note: previous definition is here
+void algSAT_stage4(__global float *g_inout, __global const float *g_y,
+     ^
+:309:19: error: illegal implicit conversion between two pointers with different address spaces
+                        float *bdata = s_block[tx];
+                                       ^~~~~~~~~~~
+:309:11: warning: initializing 'float *' with an expression of type 'float __attribute__((address_space(3))) [33]' discards qualifiers
+                        float *bdata = s_block[tx];
+                               ^       ~~~~~~~~~~~
+
+-----------------------------------------------------------
+
+
+Writing ptx to separate file: build_error.ptx ...
+

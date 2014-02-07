@@ -1,0 +1,2 @@
+clCreateProgramWithSource <sat.cl> succeeded, program_length=8181
+clBuildProgram <sat.cl> succeeded

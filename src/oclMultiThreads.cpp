@@ -29,7 +29,7 @@
 #include <shrQATest.h>
 #include <oclUtils.h>
 #include <vector>
-#include <ClState.h>
+#include <ClState.hpp>
 
 #ifdef _WIN32
 #include <windows.h>

@@ -600,9 +600,6 @@ extern "C" unsigned char* shrLoadRawFile(const char* filename, size_t size);
 extern "C" size_t shrRoundUp(int group_size, int global_size);
 
 
-int compileOCLKernel(cl_context cxGPUContext, cl_device_id cdDevices,
-		cl_program *cpProgram, const char* source_path);
-
 // companion inline function for error checking and exit on error WITH Cleanup Callback (if supplied)
 // *********************************************************************
 inline void __shrCheckErrorEX(int iSample, int iReference, void (*pCleanup)(int), const char* cFile, const int iLine)

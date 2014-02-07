@@ -7,7 +7,8 @@ common/src/shrUtils.d: ../common/src/shrUtils.cpp \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_gl.h \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_gl_ext.h \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_ext.h \
- /home/algomorph/Factory/clsat/common/inc/cmd_arg_reader.h
+ /home/algomorph/Factory/clsat/common/inc/cmd_arg_reader.h \
+ /home/algomorph/Factory/clsat/common/inc/exception.hpp
 
 /home/algomorph/Factory/clsat/common/inc/shrUtils.h:
 
@@ -26,3 +27,5 @@ common/src/shrUtils.d: ../common/src/shrUtils.cpp \
 /home/algomorph/Factory/clsat/common/inc/CL/cl_ext.h:
 
 /home/algomorph/Factory/clsat/common/inc/cmd_arg_reader.h:
+
+/home/algomorph/Factory/clsat/common/inc/exception.hpp:

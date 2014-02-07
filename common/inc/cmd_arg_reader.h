@@ -20,14 +20,7 @@
 #include <sstream>
 #include <algorithm>
 #include <typeinfo>
-#include <boost/exception/all.hpp>
-#include <boost/throw_exception.hpp>
-
-typedef boost::error_info<struct tag_my_info, const char*> error_message;
-struct runtime_error: virtual boost::exception, virtual std::exception {
-};
-struct logic_error: virtual boost::exception, virtual std::exception {
-};
+#include <exception.hpp>
 
 //! Preprocessed command line arguments
 //! @note Lazy evaluation: The arguments are converted from strings to

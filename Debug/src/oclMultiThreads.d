@@ -8,7 +8,7 @@ src/oclMultiThreads.d: ../src/oclMultiThreads.cpp \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_gl.h \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_gl_ext.h \
  /home/algomorph/Factory/clsat/common/inc/CL/cl_ext.h \
- /home/algomorph/Factory/clsat/include/ClState.h \
+ /home/algomorph/Factory/clsat/include/ClState.hpp \
  /home/algomorph/Factory/clsat/include/multithreading.h \
  /home/algomorph/Factory/clsat/include/multithreading.h
 
@@ -30,7 +30,7 @@ src/oclMultiThreads.d: ../src/oclMultiThreads.cpp \
 
 /home/algomorph/Factory/clsat/common/inc/CL/cl_ext.h:
 
-/home/algomorph/Factory/clsat/include/ClState.h:
+/home/algomorph/Factory/clsat/include/ClState.hpp:
 
 /home/algomorph/Factory/clsat/include/multithreading.h:
 
