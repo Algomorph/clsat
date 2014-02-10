@@ -1,8 +1,7 @@
 Detected 1 OpenCL devices of type CL_DEVICE_TYPE_GPU
-> OpenCL Device #0 (GeForce GTX 260), cl_device_id: 20481872
+> OpenCL Device #0 (GeForce GTX 260), cl_device_id: 14673744
   Device global memory: 938803200 bytes
   Device local memory: 16384 bytes
   Device max compute units: 24
   Device max work-group size: 512
-clCreateProgramWithSource <sat.cl> succeeded, program_length=8181
-clBuildProgram <sat.cl> succeeded
+Error: Failed to load compute program sat.cl!

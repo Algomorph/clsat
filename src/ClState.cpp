@@ -25,10 +25,12 @@ CLState::CLState(bool bEnableProfile, bool verbose, bool log) :
 		//Retrieve available OpenCL GPU devices
 		ciErrNum = clGetDeviceIDs(this->platform, CL_DEVICE_TYPE_GPU, 0, NULL,
 				&this->deviceCount);
+
 		this->devices = (cl_device_id *) malloc(
 				this->deviceCount * sizeof(cl_device_id));
 		ciErrNum = clGetDeviceIDs(this->platform, CL_DEVICE_TYPE_GPU,
 				this->deviceCount, this->devices, NULL);
+		std::cout << this->deviceCount << std::endl << std::flush;
 		// Allocate a buffer array to store the names GPU device(s)
 		char (*clDeviceNames)[256] = new char[this->deviceCount][256];
 		if (ciErrNum != CL_SUCCESS && log) {
@@ -40,11 +42,30 @@ CLState::CLState(bool bEnableProfile, bool verbose, bool log) :
 						this->deviceCount);
 			}
 			for (int i = 0; i < (int) this->deviceCount; i++) {
+				cl_ulong globalMemSize = 0;
+				cl_ulong localMemSize = 0;
+				cl_uint maxComputeUnits = 0;
+				size_t maxWorkGroupSize = 0;
+
 				clGetDeviceInfo(this->devices[i], CL_DEVICE_NAME,
 						sizeof(clDeviceNames[i]), &clDeviceNames[i], NULL);
+				clGetDeviceInfo(this->devices[i], CL_DEVICE_GLOBAL_MEM_SIZE,
+						sizeof(clDeviceNames[i]), &globalMemSize, NULL);
+				clGetDeviceInfo(this->devices[i], CL_DEVICE_LOCAL_MEM_SIZE,
+						sizeof(clDeviceNames[i]), &localMemSize, NULL);
+				clGetDeviceInfo(this->devices[i], CL_DEVICE_MAX_COMPUTE_UNITS,
+						sizeof(clDeviceNames[i]), &maxComputeUnits, NULL);
+				clGetDeviceInfo(this->devices[i], CL_DEVICE_MAX_WORK_GROUP_SIZE,
+						sizeof(clDeviceNames[i]), &maxWorkGroupSize, NULL);
+
 				if (log) {
-					shrLog("> OpenCL Device #%d (%s), cl_device_id: %d\n", i,
-							clDeviceNames[i], this->devices[i]);
+					shrLog("> OpenCL Device #%d (%s), cl_device_id: %d\n"
+							"  Device global memory: %d bytes\n"
+							"  Device local memory: %d bytes\n"
+							"  Device max compute units: %d\n"
+							"  Device max work-group size: %d\n", i,
+							clDeviceNames[i], this->devices[i], globalMemSize,
+							localMemSize, maxComputeUnits, maxWorkGroupSize);
 				}
 			}
 			//Create the OpenCL context
@@ -129,7 +150,7 @@ cl_program CLState::compileOCLProgram(const char* sourcePath,
 					iDevice < this->execDeviceCount
 							&& build_status == CL_SUCCESS
 							&& errNum == CL_SUCCESS; iDevice++) {
-				std::cout <<"Hello!"<<std::endl;
+				std::cout << "Hello!" << std::endl;
 				cl_device_id device = this->execDevices[iDevice];
 				errNum = clGetProgramBuildInfo(program, device,
 				CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status,
