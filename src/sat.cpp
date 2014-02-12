@@ -15,20 +15,21 @@
 #include <boost/lexical_cast.hpp>
 namespace sat {
 
-void generateConstants(satConstants& sc, const int& w, const int& h) {
+void generateConstants(satConstants& config, const int& w, const int& h,
+		const int& warpSize) {
 
-	sc.width = w;
-	sc.height = h;
-	sc.m_size = (w + WARP_SIZE - 1) / WARP_SIZE;
-	sc.n_size = (h + WARP_SIZE - 1) / WARP_SIZE;
-	sc.last_m = sc.m_size - 1;
-	sc.last_n = sc.n_size - 1;
-	sc.border = 0;
-	sc.carry_width = sc.m_size * WARP_SIZE;
-	sc.carry_height = sc.n_size * WARP_SIZE;
-	sc.carry_height = h;
-	sc.inv_width = 1.f / (float) w;
-	sc.inv_height = 1.f / (float) h;
+	config.width = w;
+	config.height = h;
+	config.colGroupCount = (w + WARP_SIZE - 1) / WARP_SIZE;
+	config.rowGroupCount = (h + WARP_SIZE - 1) / WARP_SIZE;
+	config.iLastColGroup = config.colGroupCount - 1;
+	config.iLastRowGroup = config.rowGroupCount - 1;
+	config.border = 0;
+	config.carryWidth = config.colGroupCount * WARP_SIZE;
+	config.carryHeight = config.rowGroupCount * WARP_SIZE;
+	//sc.carryHeight = h;
+	config.invWidth = 1.f / (float) w;
+	config.invHeight = 1.f / (float) h;
 
 }
 
@@ -38,19 +39,23 @@ std::string genSatClDefineOptions(const satConstants& sc) {
 	return
 	DEF_SYMBOL("WIDTH", boost::lexical_cast<std::string>(sc.width))
 			+ DEF_SYMBOL("HEIGHT", boost::lexical_cast<std::string>(sc.height))
-			+ DEF_SYMBOL("M_SIZE", boost::lexical_cast<std::string>(sc.m_size))
-			+ DEF_SYMBOL("N_SIZE", boost::lexical_cast<std::string>(sc.n_size))
-			+ DEF_SYMBOL("LAST_M", boost::lexical_cast<std::string>(sc.last_m))
-			+ DEF_SYMBOL("LAST_N", boost::lexical_cast<std::string>(sc.last_n))
+			+ DEF_SYMBOL("M_SIZE",
+					boost::lexical_cast<std::string>(sc.colGroupCount))
+			+ DEF_SYMBOL("N_SIZE",
+					boost::lexical_cast<std::string>(sc.rowGroupCount))
+			+ DEF_SYMBOL("LAST_M",
+					boost::lexical_cast<std::string>(sc.iLastColGroup))
+			+ DEF_SYMBOL("LAST_N",
+					boost::lexical_cast<std::string>(sc.iLastRowGroup))
 			+ DEF_SYMBOL("BORDER", boost::lexical_cast<std::string>(sc.border))
 			+ DEF_SYMBOL("CARRY_WIDTH",
-					boost::lexical_cast<std::string>(sc.carry_width))
+					boost::lexical_cast<std::string>(sc.carryWidth))
 			+ DEF_SYMBOL("CARRY_HEIGHT",
-					boost::lexical_cast<std::string>(sc.carry_height))
+					boost::lexical_cast<std::string>(sc.carryHeight))
 			+ DEF_SYMBOL("INV_WIDTH",
-					boost::lexical_cast<std::string>(sc.inv_width))
+					boost::lexical_cast<std::string>(sc.invWidth))
 			+ DEF_SYMBOL("INV_HEIGHT",
-					boost::lexical_cast<std::string>(sc.inv_height));
+					boost::lexical_cast<std::string>(sc.invHeight));
 }
 
 void prepareSAT(satConstants& sc, float* d_inout, float* d_ybar, float* d_vhat,
@@ -63,32 +68,63 @@ void prepareSAT(satConstants& sc, float* d_inout, float* d_ybar, float* d_vhat,
 
 }
 
-void computeSummedAreaTable(float* h_inout, const int& w, const int& h,
+void computeSummedAreaTable(float* inputMatrix, const int& w, const int& h,
 		CLState& state) {
-	satConstants sc;
-	float* d_out, *d_ybar, *d_vhat, *d_ysum;
-	sc.width = w;
-	sc.height = h;
+	satConstants config;
+	config.width = w;
+	config.height = h;
+
 	//pad so the matrix dimensions are multiples of 32
 	if (w % WARP_SIZE > 0)
-		sc.width += (WARP_SIZE - (w % WARP_SIZE));
+		config.width += (WARP_SIZE - (w % WARP_SIZE));
 	if (h % WARP_SIZE > 0)
-		sc.height += (WARP_SIZE - (h % WARP_SIZE));
-	generateConstants(sc, sc.width, sc.height);
-	d_out = new float[sc.width * sc.height];
-	std::string defineOptions = genSatClDefineOptions(sc);
+		config.height += (WARP_SIZE - (h % WARP_SIZE));
+
+	generateConstants(config, config.width, config.height);
+	std::string defineOptions = genSatClDefineOptions(config);
 	cl_program program = state.compileOCLProgram("sat.cl", defineOptions);
 	cl_int errCode;
+
+	cl_mem matrix = clCreateBuffer(state.context,
+	CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+			config.width * config.height * sizeof(float), inputMatrix,
+			&errCode);
+
+	cl_mem yBar = clCreateBuffer(state.context, CL_MEM_READ_WRITE,
+			config.rowGroupCount * config.width * sizeof(float), NULL,
+			&errCode);
+
+	cl_mem vHat = clCreateBuffer(state.context, CL_MEM_READ_WRITE,
+			config.colGroupCount * config.height * sizeof(float), NULL,
+			&errCode);
+
+	cl_mem ySum = clCreateBuffer(state.context, CL_MEM_READ_WRITE,
+			config.rowGroupCount * config.colGroupCount * sizeof(float), NULL,
+			&errCode);
+
+	cl_command_queue queue = clCreateCommandQueue(state.context,
+			state.devices[0],
+			(state.enableProfiling ? CL_QUEUE_PROFILING_ENABLE : 0), &errCode);
+
+	state.deferredReleaseQueues.push_back(queue);
+	state.deferredReleaseMem.push_back(matrix);
+	state.deferredReleaseMem.push_back(yBar);
+	state.deferredReleaseMem.push_back(vHat);
+	state.deferredReleaseMem.push_back(ySum);
+
 	cl_kernel stage1 = clCreateKernel(program, "algSAT_stage1", &errCode);
 	cl_kernel stage2 = clCreateKernel(program, "algSAT_stage2", &errCode);
 	cl_kernel stage3 = clCreateKernel(program, "algSAT_stage3", &errCode);
 	cl_kernel stage4 = clCreateKernel(program, "algSAT_stage4_inplace",
 			&errCode);
+
 	size_t group_size_factor;
 	errCode = clGetKernelWorkGroupInfo(stage1, state.devices[0],
 	CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t),
 			&group_size_factor, NULL);
-	std::cout << group_size_factor << std::endl << std::flush;
+	std::cout << "Sugguested group size: " << group_size_factor << std::endl
+			<< std::flush;
+
 }
 } //end namespace sat
 

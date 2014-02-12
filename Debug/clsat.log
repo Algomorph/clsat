@@ -1,6 +1,6 @@
 Detected 1 OpenCL devices of type CL_DEVICE_TYPE_GPU
-> OpenCL Device #0 (GeForce GTX 260), cl_device_id: 20481872
-  Device global memory: 938803200 bytes
+> OpenCL Device #0 (GeForce GTX 260), cl_device_id: 34248528
+  Device global memory: 939196416 bytes
   Device local memory: 16384 bytes
   Device max compute units: 24
   Device max work-group size: 512

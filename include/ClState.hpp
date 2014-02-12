@@ -29,11 +29,12 @@ public:
 	cl_uint deviceCount;
 	cl_uint execDeviceCount;
 	cl_int errNum;
+	bool enableProfiling;
 	std::vector<cl_kernel> kernels;
 	std::vector<cl_program> programs;
 	std::vector<cl_mem> deferredReleaseMem;
 	std::vector<cl_command_queue> deferredReleaseQueues;
-	CLState(bool bEnableProfile, bool verbose = false,
+	CLState(bool enableProfile, bool verbose = false,
 			bool log = false);
 	virtual ~CLState();
 	bool engageBarrier(int numKernels);

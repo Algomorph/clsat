@@ -11,9 +11,9 @@
 #include <exception.hpp>
 #include <stdio.h>
 
-CLState::CLState(bool bEnableProfile, bool verbose, bool log) :
+CLState::CLState(bool enableProfile, bool verbose, bool log) :
 		platform(NULL), devices(NULL), execDevices(NULL), deviceCount(0), execDeviceCount(
-				0), errNum(CL_SUCCESS), engagedBarrier(false) {
+				0), errNum(CL_SUCCESS), enableProfiling(enableProfile), engagedBarrier(false) {
 
 	cl_int ciErrNum = CL_SUCCESS;
 

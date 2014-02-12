@@ -5,15 +5,15 @@ namespace sat {
 typedef struct _alg_setup {
     int width, ///< Image width
         height, ///< Image height
-        m_size, ///< Number of column-blocks
-        n_size, ///< Number of row-blocks
-        last_m, ///< Last valid column-block
-        last_n, ///< Last valid row-block
+        colGroupCount, ///< Number of column blocks/groups
+        rowGroupCount, ///< Number of row blocks/groups
+        iLastColGroup, ///< Last valid column-block
+        iLastRowGroup, ///< Last valid row-block
         border, ///< Border extension to consider outside image
-        carry_height, ///< Auxiliary carry-image height
-        carry_width; ///< Auxiliary carry-image width
-    float inv_width, ///< Inverse of image width
-        inv_height; ///< Inverse of image height
+        carryHeight, ///< Auxiliary carry-image height
+        carryWidth; ///< Auxiliary carry-image width
+    float invWidth, ///< Inverse of image width
+        invHeight; ///< Inverse of image height
 } satConstants; ///< @see _alg_setup
 
 void generateConstants( satConstants& algs,
