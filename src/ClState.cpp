@@ -30,7 +30,6 @@ CLState::CLState(bool enableProfile, bool verbose, bool log) :
 				this->deviceCount * sizeof(cl_device_id));
 		ciErrNum = clGetDeviceIDs(this->platform, CL_DEVICE_TYPE_GPU,
 				this->deviceCount, this->devices, NULL);
-		std::cout << this->deviceCount << std::endl << std::flush;
 		// Allocate a buffer array to store the names GPU device(s)
 		char (*clDeviceNames)[256] = new char[this->deviceCount][256];
 		if (ciErrNum != CL_SUCCESS && log) {
@@ -150,7 +149,6 @@ cl_program CLState::compileOCLProgram(const char* sourcePath,
 					iDevice < this->execDeviceCount
 							&& build_status == CL_SUCCESS
 							&& errNum == CL_SUCCESS; iDevice++) {
-				std::cout << "Hello!" << std::endl;
 				cl_device_id device = this->execDevices[iDevice];
 				errNum = clGetProgramBuildInfo(program, device,
 				CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status,

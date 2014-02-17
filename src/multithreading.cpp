@@ -11,7 +11,7 @@
 
 
 
-#include "multithreading.h"
+#include <multithreading.h>
 
 #if _WIN32
     //Create thread
@@ -70,7 +70,7 @@
 
 	//Destory barrier
 	void cutDestroyBarrier(CUTBarrier* barrier) {
-		
+
 	}
 
 
@@ -118,7 +118,7 @@
 		pthread_mutex_lock(&barrier->mutex);
 		myBarrierCount = ++barrier->count;
 		pthread_mutex_unlock(&barrier->mutex);
-	
+
 		if( myBarrierCount >=barrier->releaseCount ) {
 			pthread_cond_signal(&barrier->conditionVariable);
 		}

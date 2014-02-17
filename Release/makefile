@@ -52,10 +52,10 @@ all: pre-build main-build
 main-build: clsat
 
 # Tool invocations
-clsat: $(OBJS) $(USER_OBJS)
+clsat: $(OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++  -o "clsat" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++  -o "clsat" $(OBJS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

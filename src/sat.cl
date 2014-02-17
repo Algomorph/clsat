@@ -2,8 +2,8 @@
 #include "OpenCLKernel.hpp"
 #define WIDTH 1
 #define HEIGHT 1
-#define M_SIZE 1
-#define N_SIZE 1
+#define N_COLUMNS 1
+#define N_ROWS 1
 #define LAST_M 1
 #define LAST_N 1
 #define BORDER 1
@@ -17,49 +17,60 @@
 #endif
 
 //== CONSTANT DECLARATION
-__constant int c_width = WIDTH, c_height = HEIGHT, c_m_size = M_SIZE, c_n_size =
-		N_SIZE, c_last_m = LAST_M, c_last_n = LAST_N, c_border = BORDER,
-		c_carry_width = CARRY_WIDTH, c_carry_height = CARRY_HEIGHT;
+__constant int c_width = WIDTH, c_height = HEIGHT, c_m_size = N_COLUMNS, c_n_size =
+N_ROWS, c_last_m = LAST_M, c_last_n = LAST_N, c_border = BORDER, c_carry_width =
+		CARRY_WIDTH, c_carry_height = CARRY_HEIGHT;
 
 __constant float c_inv_width = INV_WIDTH, c_inv_height = INV_HEIGHT;
 
 //== IMPLEMENTATION ===========================================================
 
-//-- Algorithm SAT Stage 1 ----------------------------------------------------
+//-- SAT Stage 1 ----------------------------------------------------
 
 __kernel
-void algSAT_stage1(__global const float* g_in, __global float* g_ybar,
-		__global float* g_vhat) {
+void testKernel(__global float* g_inout){
+	const size_t x = get_global_id(0), y = get_global_id(1);
+	g_inout[y * CARRY_WIDTH + x] += 1.0f;
+}
 
-	const size_t work_item_y = get_local_id(1), work_item_x = get_local_id(0), group_y = get_group_id(
-			1), group_x = get_group_id(0), col = group_x * WARP_SIZE + work_item_x, row0 = group_y
-			* WARP_SIZE;
+//group size: WARP_SIZE X SCHEDULE_OPTIMIZED_N_WARPS (w x h)
+//yBar: colGroupCount x width
+//vHat: rowGroupCound x height
+__kernel
+void algSAT_stage1(const __global float* inputMatrix, __global float* yBar,
+		__global float* vHat) {
 
-	__local float s_block[ WARP_SIZE][ WARP_SIZE + 1];
-	float (*bdata)[WARP_SIZE + 1] = (float (*)[WARP_SIZE + 1]) &s_block[work_item_y][work_item_x];
+	const size_t yWorkItem = get_local_id(1), xWorkItem = get_local_id(0),
+			yGroup = get_group_id(1), xGroup = get_group_id(0), col = get_global_id(0),
+			row = get_global_id(1), row0 = row - yWorkItem;
 
-	g_in += (row0 + work_item_y) * c_width + col;
-	g_ybar += group_y * c_width + col;
-	g_vhat += group_x * c_height + row0 + work_item_x;
+	__local float sBlock[WARP_SIZE][ WARP_SIZE + 1];
+	float (*bdata)[WARP_SIZE + 1] =
+			(float (*)[WARP_SIZE + 1]) &sBlock[yWorkItem][xWorkItem];
+
+	//position the input pointer to this work-item's cell
+	inputMatrix += row * CARRY_WIDTH + col;
+	yBar += yGroup * CARRY_WIDTH + col;//top->bottom output block
+	vHat += xGroup * CARRY_HEIGHT + row;//left->right output block
 
 #pragma unroll
 	for (int i = 0; i < WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS);
 			i += SCHEDULE_OPTIMIZED_N_WARPS) {
-		**bdata = *g_in;
+		**bdata = *inputMatrix;
 		bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-		g_in += SCHEDULE_OPTIMIZED_N_WARPS * c_width;
+		inputMatrix += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
 	}
-	if (work_item_y < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
-		**bdata = *g_in;
+	if (yWorkItem < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
+		**bdata = *inputMatrix;
 	}
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	if (work_item_y == 0) {
+	if (yWorkItem == 0) {
 
-		{   // calculate ybar -----------------------
+		{   // calculate ybar (aggregate vertically) -----------
 			float(*bdata)[WARP_SIZE + 1] =
-					(float (*)[WARP_SIZE + 1])&s_block[0][work_item_x];
+					(float (*)[WARP_SIZE + 1]) &sBlock[0][xWorkItem];
 
 			float prev = **bdata;
 			++bdata;
@@ -68,11 +79,11 @@ void algSAT_stage1(__global const float* g_in, __global float* g_ybar,
 			for (int i = 1; i < WARP_SIZE; ++i, ++bdata)
 				**bdata = prev = **bdata + prev;
 
-			*g_ybar = prev;
+			*yBar = prev;
 		}
 
-		{   // calculate vhat -----------------------
-			__local float *bdata = s_block[work_item_x];
+		{   // calculate vhat (aggregate horizontally) ----------
+			__local float *bdata = sBlock[xWorkItem];
 
 			float prev = *bdata;
 			++bdata;
@@ -81,7 +92,7 @@ void algSAT_stage1(__global const float* g_in, __global float* g_ybar,
 			for (int i = 1; i < WARP_SIZE; ++i, ++bdata)
 				prev = *bdata + prev;
 
-			*g_vhat = prev;
+			*vHat = prev;
 		}
 
 	}
@@ -141,7 +152,7 @@ void algSAT_stage2(__global float *g_ybar, __global float *g_ysum) {
 //-- Algorithm SAT Stage 3 ----------------------------------------------------
 
 __kernel
-void algSAT_stage3( __global const float *g_ysum, __global float *g_vhat) {
+void algSAT_stage3(const __global float *g_ysum, __global float *g_vhat) {
 
 	const size_t tx = get_local_id(0), ty = get_local_id(1), by = get_group_id(
 			1), row0 = by * MAX_WARPS + ty, row = row0 * WARP_SIZE + tx;
@@ -174,9 +185,7 @@ void algSAT_stage3( __global const float *g_ysum, __global float *g_vhat) {
 //-- Algorithm SAT Stage 4 ----------------------------------------------------
 
 __kernel
-void algSAT_stage4_inplace(
-		__global float *g_inout,
-		__global const float *g_y,
+void algSAT_stage4_inplace( __global float *g_inout, __global const float *g_y,
 		__global const float *g_v) {
 
 	const size_t tx = get_local_id(0), ty = get_local_id(1), bx = get_group_id(
@@ -261,10 +270,8 @@ void algSAT_stage4_inplace(
 //-- Algorithm SAT Stage 4 (not-in-place) -------------------------------------
 
 __kernel
-void algSAT_stage4_not_inplace(
-		__global float *g_out,
-		__global const float *g_in,
-		__global const float *g_y,
+void algSAT_stage4_not_inplace( __global float *g_out,
+		__global const float *g_in, __global const float *g_y,
 		__global const float *g_v) {
 
 	const size_t tx = get_local_id(0), ty = get_local_id(1), bx = get_group_id(
