@@ -1,13 +1,13 @@
 #ifdef __CDT_PARSER__
 #include "OpenCLKernel.hpp"
-#define WIDTH 1
-#define HEIGHT 1
+#define WIDTH 32
+#define HEIGHT 32
 #define N_COLUMNS 1
 #define N_ROWS 1
 #define LAST_M 1
 #define LAST_N 1
 #define BORDER 1
-#define CARRY_WIDTH 1
+#define CARRY_WIDTH 32
 #define CARRY_HEIGHT 1
 #define INV_WIDTH 1.0F
 #define INV_HEIGHT 1.0F
@@ -37,31 +37,46 @@ void testKernel(__global float* g_inout){
 //yBar: colGroupCount x width
 //vHat: rowGroupCound x height
 __kernel
-void algSAT_stage1(const __global float* inputMatrix, __global float* yBar,
-		__global float* vHat) {
+void algSAT_stage1(const __global float* input, __global float* yBar,
+		__global float* vHat, __global float* debugBuf) {
 
 	const size_t yWorkItem = get_local_id(1), xWorkItem = get_local_id(0),
 			yGroup = get_group_id(1), xGroup = get_group_id(0), col = get_global_id(0),
 			row = get_global_id(1), row0 = row - yWorkItem;
 
+	//local memory to store intermediate results, size WARP_SIZE x WARP_SIZE+1
 	__local float sBlock[WARP_SIZE][ WARP_SIZE + 1];
+
+	//pointer to an array of floats of WARP_SIZE + 1, starting at the coordinate of the work item within
+	//the sBlock
 	float (*bdata)[WARP_SIZE + 1] =
 			(float (*)[WARP_SIZE + 1]) &sBlock[yWorkItem][xWorkItem];
+	//float (*ddata)[WARP_SIZE + 1] =
+				//(float (*)[WARP_SIZE + 1]) (debugBuf + (yWorkItem * WARP_SIZE) + xWorkItem);
 
 	//position the input pointer to this work-item's cell
-	inputMatrix += row * CARRY_WIDTH + col;
+	//debugBuf += row * CARRY_WIDTH + col;
+	input += row * CARRY_WIDTH + col;
 	yBar += yGroup * CARRY_WIDTH + col;//top->bottom output block
-	vHat += xGroup * CARRY_HEIGHT + row;//left->right output block
+	vHat += xGroup * CARRY_HEIGHT + row0+xWorkItem;//left->right output block
+	//**bdata = *input;
+	//bdata += SCHEDULE_OPTIMIZED_N_WARPS;
+	//**bdata = *input;
 
-#pragma unroll
+//pragma unroll
+	//fill the local data
+	/*
 	for (int i = 0; i < WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS);
-			i += SCHEDULE_OPTIMIZED_N_WARPS) {
-		**bdata = *inputMatrix;
-		bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-		inputMatrix += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
+			i ++) {
+		**bdata = *input;
+		//**ddata = *input;
+		bdata = ((float (*)[WARP_SIZE + 1]) &sBlock[yWorkItem][xWorkItem] + i*SCHEDULE_OPTIMIZED_N_WARPS);
+		//bdata += SCHEDULE_OPTIMIZED_N_WARPS;
+		input += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
 	}
+
 	if (yWorkItem < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
-		**bdata = *inputMatrix;
+		**bdata = *input;
 	}
 
 	barrier(CLK_LOCAL_MEM_FENCE);
@@ -95,7 +110,7 @@ void algSAT_stage1(const __global float* inputMatrix, __global float* yBar,
 			*vHat = prev;
 		}
 
-	}
+	}*/
 }
 
 //-- Algorithm SAT Stage 2 ----------------------------------------------------

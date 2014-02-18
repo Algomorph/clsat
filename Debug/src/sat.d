@@ -9,7 +9,9 @@ src/sat.d: ../src/sat.cpp /home/algomorph/Factory/clsat/include/sat.h \
  /opt/intel/opencl-1.2-3.2.1.16712/include/CL/cl_gl_ext.h \
  /opt/intel/opencl-1.2-3.2.1.16712/include/CL/cl_ext.h \
  /home/algomorph/Factory/clsat/include/ClState.hpp \
- /home/algomorph/Factory/clsat/include/multithreading.h
+ /opt/intel/opencl-1.2-3.2.1.16712/include/CL/cl.hpp \
+ /home/algomorph/Factory/clsat/include/multithreading.h \
+ /home/algomorph/Factory/clsat/include/test.hpp
 
 /home/algomorph/Factory/clsat/include/sat.h:
 
@@ -33,4 +35,8 @@ src/sat.d: ../src/sat.cpp /home/algomorph/Factory/clsat/include/sat.h \
 
 /home/algomorph/Factory/clsat/include/ClState.hpp:
 
+/opt/intel/opencl-1.2-3.2.1.16712/include/CL/cl.hpp:
+
 /home/algomorph/Factory/clsat/include/multithreading.h:
+
+/home/algomorph/Factory/clsat/include/test.hpp:

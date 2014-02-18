@@ -10,7 +10,6 @@ RM := rm -rf
 -include sources.mk
 -include src/subdir.mk
 -include common/src/subdir.mk
--include common/obj/release/subdir.mk
 -include subdir.mk
 -include objects.mk
 
@@ -65,7 +64,7 @@ clean:
 	-@echo ' '
 
 pre-build:
-	-cp ../src/sat.cl ./ && cp ../include/gpudefs.h ./
+	-cp ../src/sat.cl ./ && cp ../include/gpudefs.h ./ && cp ../src/sat.cl ../ && cp ../include/gpudefs.h ../
 	-@echo ' '
 
 .PHONY: all clean dependents

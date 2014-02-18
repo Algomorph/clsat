@@ -29,5 +29,4 @@ C_UPPER_DEPS :=
 SUBDIRS := \
 src \
 common/src \
-common/obj/release \
 

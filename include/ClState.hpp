@@ -11,7 +11,7 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
-#include <CL/cl.h>
+#include <CL/cl.hpp>
 #include "multithreading.h"
 
 

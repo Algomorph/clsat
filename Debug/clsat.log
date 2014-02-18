@@ -1,9 +1,11 @@
 Detected 1 OpenCL devices of type CL_DEVICE_TYPE_GPU
-> OpenCL Device #0 (GeForce 610M), cl_device_id: 33946960
-  Device global memory: 1073479680 bytes
-  Device local memory: 49152 bytes
-  Device max compute units: 1
-  Device max work-group size: 1024
-clCreateProgramWithSource <sat.cl> succeeded, program_length=8557
+> OpenCL Device #0 (GeForce GTX 260), cl_device_id: 38987552
+  Device global memory: 939196416 bytes
+  Device local memory: 16384 bytes
+  Device max compute units: 24
+  Device max work-group size: 512
+clCreateProgramWithSource <sat.cl> succeeded, program_length=8889
 clBuildProgram <sat.cl> succeeded
+clEnqueueReadBuffer failed to read buffer with error -5.
+clFlush failed to with error -5.
 clEnqueueReadBuffer failed to read buffer with error -5.
