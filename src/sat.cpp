@@ -6,6 +6,7 @@
  */
 #include <sat.h>
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <iostream>
@@ -16,7 +17,7 @@
 #include <test.hpp>
 namespace sat {
 
-void generateConstants(satConstants& config, const int& w, const int& h) {
+void configureSat(satConfig& config, const int& w, const int& h) {
 	//pad so the matrix dimensions are multiples of 32
 	config.width = w;
 	config.height = h;
@@ -27,6 +28,7 @@ void generateConstants(satConstants& config, const int& w, const int& h) {
 	config.rowGroupCount = config.carryHeight / WARP_SIZE;
 	config.iLastColGroup = config.colGroupCount - 1;
 	config.iLastRowGroup = config.rowGroupCount - 1;
+	config.inputStride = SCHEDULE_OPTIMIZED_N_WARPS * config.carryWidth;
 	config.border = 0;
 	config.invWidth = 1.f / (float) w;
 	config.invHeight = 1.f / (float) h;
@@ -34,27 +36,29 @@ void generateConstants(satConstants& config, const int& w, const int& h) {
 
 #define DEF_SYMBOL(name,value) " -D " + std::string(name) + "=" + value
 
-std::string genSatClDefineOptions(const satConstants& sc) {
+std::string genSatClDefineOptions(const satConfig& config) {
 	return
-	DEF_SYMBOL("WIDTH", boost::lexical_cast<std::string>(sc.width))
-			+ DEF_SYMBOL("HEIGHT", boost::lexical_cast<std::string>(sc.height))
+	DEF_SYMBOL("WIDTH", boost::lexical_cast<std::string>(config.width))
+			+ DEF_SYMBOL("HEIGHT", boost::lexical_cast<std::string>(config.height))
 			+ DEF_SYMBOL("N_COLUMNS",
-					boost::lexical_cast<std::string>(sc.colGroupCount))
+					boost::lexical_cast<std::string>(config.colGroupCount))
 			+ DEF_SYMBOL("N_ROWS",
-					boost::lexical_cast<std::string>(sc.rowGroupCount))
+					boost::lexical_cast<std::string>(config.rowGroupCount))
 			+ DEF_SYMBOL("LAST_M",
-					boost::lexical_cast<std::string>(sc.iLastColGroup))
+					boost::lexical_cast<std::string>(config.iLastColGroup))
 			+ DEF_SYMBOL("LAST_N",
-					boost::lexical_cast<std::string>(sc.iLastRowGroup))
-			+ DEF_SYMBOL("BORDER", boost::lexical_cast<std::string>(sc.border))
+					boost::lexical_cast<std::string>(config.iLastRowGroup))
+			+ DEF_SYMBOL("BORDER", boost::lexical_cast<std::string>(config.border))
 			+ DEF_SYMBOL("CARRY_WIDTH",
-					boost::lexical_cast<std::string>(sc.carryWidth))
+					boost::lexical_cast<std::string>(config.carryWidth))
 			+ DEF_SYMBOL("CARRY_HEIGHT",
-					boost::lexical_cast<std::string>(sc.carryHeight))
+					boost::lexical_cast<std::string>(config.carryHeight))
+			+ DEF_SYMBOL("INPUT_STRIDE",
+					boost::lexical_cast<std::string>(config.inputStride))
 			+ DEF_SYMBOL("INV_WIDTH",
-					boost::lexical_cast<std::string>(sc.invWidth))
+					boost::lexical_cast<std::string>(config.invWidth))
 			+ DEF_SYMBOL("INV_HEIGHT",
-					boost::lexical_cast<std::string>(sc.invHeight));
+					boost::lexical_cast<std::string>(config.invHeight));
 }
 
 void runKernel(const cl_kernel& kernel, const cl_command_queue& queue,
@@ -78,22 +82,50 @@ void runKernel(const cl_kernel& kernel, const cl_command_queue& queue,
 	}
 }
 
+void padMatrixLR(float* origMat, float* paddedMat, const int& width, const int& height,
+		const int& carryWidth) {
+	const size_t origRowSize = width*sizeof(float);
+	for(int iRow = 0; iRow < height; iRow++){
+		memcpy(paddedMat,origMat,origRowSize);
+		paddedMat += carryWidth;
+		origMat += width;
+	}
+}
+void unpadMatrixLR(float* destMat, float* paddedMat, const int& width, const int& height,
+		const int& carryWidth) {
+	const size_t destRowSize = width*sizeof(float);
+	for(int iRow = 0; iRow < height; iRow++){
+		memcpy(destMat,paddedMat,destRowSize);
+		paddedMat += carryWidth;
+		destMat += width;
+	}
+}
+
 void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 		CLState& state) {
-	satConstants config;
-	generateConstants(config, w, h);
+	satConfig config;
+	configureSat(config, w, h);
 	std::string defineOptions = genSatClDefineOptions(config);
 	std::cout << "Define options:\n " << defineOptions << std::endl;
 	cl_program program = state.compileOCLProgram("sat.cl", defineOptions);
 	cl_int errCode;
+	float* preppedInOutMatrix;
 
-	size_t matrixBufferSize = config.carryWidth * config.carryHeight
+	bool paddingEnabled = config.carryWidth != config.width || config.carryHeight != config.height;
+	if(paddingEnabled){
+		preppedInOutMatrix = new float[config.carryWidth*config.carryHeight]();
+		padMatrixLR(inOutMatrix, preppedInOutMatrix, config.width, config.height, config.carryWidth);
+	}else{
+		preppedInOutMatrix = inOutMatrix;
+	}
+
+	const size_t matrixBufferSize = config.carryWidth * config.carryHeight
 			* sizeof(float);
 
 	//create matrix buffer and copy the host contents
 	cl_mem matrix = clCreateBuffer(state.context,
-	CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrixBufferSize, inOutMatrix,
-			&errCode);
+	CL_MEM_READ_WRITE, matrixBufferSize, NULL, &errCode);
+
 	if (errCode != CL_SUCCESS) {
 		shrLog(
 				"Failed to create matrix buffer & copy the contents to device, error %d.\n",
@@ -104,6 +136,7 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 	cl_mem yBar = clCreateBuffer(state.context, CL_MEM_READ_WRITE,
 			config.rowGroupCount * config.carryWidth * sizeof(float), NULL,
 			&errCode);
+
 	if (errCode != CL_SUCCESS) {
 		shrLog("Failed to create buffer, error %d.\n", errCode);
 	}
@@ -158,28 +191,26 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 	const int nWm = (config.width + MAX_N_THREADS - 1) / MAX_N_THREADS, nHm =
 			(config.height + MAX_N_THREADS - 1) / MAX_N_THREADS;
 
-	//test kernel
-	const cl_uint testArgCount = 1;
-	size_t testGlobalSize[] = { static_cast<size_t>(config.carryWidth),
-			static_cast<size_t>(config.carryHeight) };
-	size_t testLocalSize[] = { WARP_SIZE, WARP_SIZE };
-	cl_mem testArgs[testArgCount] = { matrix };
-//	runKernel(testKernel, queue, testArgCount, testArgs, 2, testGlobalSize, testLocalSize);
+// load data:
+	errCode = clEnqueueWriteBuffer(queue, matrix, CL_TRUE, 0, matrixBufferSize,
+			preppedInOutMatrix, 0, NULL, NULL);
 
 //===stage 1===
 
-	//debug array & buffer
+//debug array & buffer
 	const int debugBufCount = WARP_SIZE * (WARP_SIZE + 1);
 	size_t debugBufSize = debugBufCount * sizeof(float);
 	float* debugArray = new float[debugBufCount];
 	for (int iFloat; iFloat < debugBufCount; iFloat++) {
-		debugArray[iFloat] = -1.0f;
+		debugArray[iFloat] = 0.0f;
 	}
 	//prettyPrintMat(debugArray, WARP_SIZE, WARP_SIZE + 1);
 
 	cl_mem debugBuf = clCreateBuffer(state.context,
-			CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, debugBufSize, &debugArray,
-			&errCode);
+	CL_MEM_READ_WRITE, debugBufSize, NULL, &errCode);
+	errCode = clEnqueueWriteBuffer(queue, debugBuf, CL_TRUE, 0, debugBufSize,
+			debugArray, 0, NULL, NULL);
+
 	if (errCode != CL_SUCCESS) {
 		shrLog("clCreateBuffer failed to create buffer with error %d.\n",
 				errCode);
@@ -197,10 +228,10 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 			stage1GlobalSize, stage1LocalSize);
 	//get data back from GPU
 	//cl_event gpudone_event;
-	errCode = clEnqueueReadBuffer(queue, debugBuf, CL_TRUE, 0, debugBufSize,
-			debugArray, 0, NULL, NULL);
-	//std::cout << "got here!" << std::endl << std::flush;
-	prettyPrintMat(debugArray, WARP_SIZE, WARP_SIZE + 1);
+//	errCode = clEnqueueReadBuffer(queue, debugBuf, CL_TRUE, 0, debugBufSize,
+//			debugArray, 0, NULL, NULL);
+
+	//prettyPrintMat(debugArray, WARP_SIZE, WARP_SIZE + 1);
 	if (errCode != CL_SUCCESS) {
 		shrLog("clEnqueueReadBuffer failed to read buffer with error %d.\n",
 				errCode);
@@ -213,8 +244,8 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 			static_cast<size_t>(MAX_WARPS) };
 	size_t stage2LocalSize[] = { WARP_SIZE, MAX_WARPS };
 	cl_mem stage2Args[stage2argCount] = { yBar, ySum };
-//	runKernel(stage2, queue, stage2argCount, stage2Args, workDim,
-//			stage2GlobalSize, stage2LocalSize);
+	runKernel(stage2, queue, stage2argCount, stage2Args, workDim,
+			stage2GlobalSize, stage2LocalSize);
 
 	//===stage 3===
 	//initiate global & group sizes
@@ -223,8 +254,8 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 			static_cast<size_t>(nHm * MAX_WARPS) };
 	size_t stage3LocalSize[] = { WARP_SIZE, MAX_WARPS };
 	cl_mem stage3Args[stage3argCount] = { ySum, vHat };
-//	runKernel(stage3, queue, stage3argCount, stage3Args, workDim,
-//			stage3GlobalSize, stage3LocalSize);
+	runKernel(stage3, queue, stage3argCount, stage3Args, workDim,
+			stage3GlobalSize, stage3LocalSize);
 
 	//===stage 4===
 	//initiate global & group sizes
@@ -234,8 +265,8 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 					* SCHEDULE_OPTIMIZED_N_WARPS) };
 	size_t stage4LocalSize[] = { WARP_SIZE, SCHEDULE_OPTIMIZED_N_WARPS };
 	cl_mem stage4Args[stage4argCount] = { matrix, yBar, vHat };
-//	runKernel(stage4, queue, stage4argCount, stage4Args, workDim,
-//			stage4GlobalSize, stage4LocalSize);
+	runKernel(stage4, queue, stage4argCount, stage4Args, workDim,
+			stage4GlobalSize, stage4LocalSize);
 	errCode = clFlush(queue);
 	if (errCode != CL_SUCCESS) {
 		shrLog("clFlush failed to with error %d.\n", errCode);
@@ -244,11 +275,14 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 	//get data back from GPU
 	//cl_event gpudone_event;
 	errCode = clEnqueueReadBuffer(queue, matrix, CL_TRUE, 0,
-			static_cast<size_t>(w * h * sizeof(float)), inOutMatrix, 0, NULL,
+			static_cast<size_t>(matrixBufferSize), preppedInOutMatrix, 0, NULL,
 			NULL);
 	if (errCode != CL_SUCCESS) {
 		shrLog("clEnqueueReadBuffer failed to read buffer with error %d.\n",
 				errCode);
+	}
+	if(paddingEnabled){
+		unpadMatrixLR(inOutMatrix,preppedInOutMatrix,config.width,config.height,config.carryWidth);
 	}
 	delete[] debugArray;
 } //end computeSummedAreaTable
@@ -257,18 +291,18 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 int main(int argc, char** argv) {
 // start the logs
 	shrSetLogFileName("clsat.log");
-	const int in_w = 32, in_h = 32;
-	//const int in_w = 10, in_h = 10;
-	float* inOutMatrix = new float[in_w * in_h];
-	std::cout << "[clsat] Generating random input image (" << in_w << "x"
-			<< in_h << ") ... " << std::flush;
-	for (int i = 0; i < in_w * in_h; ++i)
-		inOutMatrix[i] = i; //rand() % 256;
+	const int width = 16, height = 16;
+	float* inOutMatrix = new float[width * height];
+	std::cout << "[clsat] Generating random input image (" << width << "x"
+			<< height << ") ... " << std::flush;
+	for (int i = 0; i < width * height; ++i)
+		inOutMatrix[i] = 1; //rand() % 256;
 	std::cout << "done!" << std::endl
 			<< "[clsat] Computing summed-area table in the GPU ... "
 			<< std::endl << std::flush;
 	CLState state(true, true, true);
-	sat::computeSummedAreaTable(inOutMatrix, in_w, in_h, state);
+	sat::computeSummedAreaTable(inOutMatrix, width, height, state);
+	prettyPrintMatrix(inOutMatrix, width, height);
 	delete[] inOutMatrix;
 	return 0;
 }

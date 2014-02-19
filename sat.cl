@@ -10,188 +10,178 @@
 #define CARRY_WIDTH 32
 #define CARRY_HEIGHT 1
 #define INV_WIDTH 1.0F
+#define INPUT_STRIDE 160
 #define INV_HEIGHT 1.0F
 #include <gpudefs.h>
 #else
 #include "gpudefs.h"
 #endif
 
-//== CONSTANT DECLARATION
-__constant int c_width = WIDTH, c_height = HEIGHT, c_m_size = N_COLUMNS, c_n_size =
-N_ROWS, c_last_m = LAST_M, c_last_n = LAST_N, c_border = BORDER, c_carry_width =
-		CARRY_WIDTH, c_carry_height = CARRY_HEIGHT;
-
-__constant float c_inv_width = INV_WIDTH, c_inv_height = INV_HEIGHT;
-
 //== IMPLEMENTATION ===========================================================
 
 //-- SAT Stage 1 ----------------------------------------------------
 
-__kernel
-void testKernel(__global float* g_inout){
-	const size_t x = get_global_id(0), y = get_global_id(1);
-	g_inout[y * CARRY_WIDTH + x] += 1.0f;
-}
-
 //group size: WARP_SIZE X SCHEDULE_OPTIMIZED_N_WARPS (w x h)
-//yBar: colGroupCount x width
-//vHat: rowGroupCound x height
+//yBar: rowGroupCount x CARRY_WIDTH
+//vHat: colGroupCount x CARRY_HEIGHT
 __kernel
 void algSAT_stage1(const __global float* input, __global float* yBar,
 		__global float* vHat, __global float* debugBuf) {
 
 	const size_t yWorkItem = get_local_id(1), xWorkItem = get_local_id(0),
-			yGroup = get_group_id(1), xGroup = get_group_id(0), col = get_global_id(0),
-			row = get_global_id(1), row0 = row - yWorkItem;
+			yGroup = get_group_id(1), xGroup = get_group_id(0), col =
+					get_global_id(0), row = get_global_id(1), row0 = row
+					- yWorkItem;
 
 	//local memory to store intermediate results, size WARP_SIZE x WARP_SIZE+1
-	__local float sBlock[WARP_SIZE][ WARP_SIZE + 1];
+	__local float dataBlock[WARP_SIZE][ WARP_SIZE + 1];
 
 	//pointer to an array of floats of WARP_SIZE + 1, starting at the coordinate of the work item within
 	//the sBlock
-	float (*bdata)[WARP_SIZE + 1] =
-			(float (*)[WARP_SIZE + 1]) &sBlock[yWorkItem][xWorkItem];
-	//float (*ddata)[WARP_SIZE + 1] =
-				//(float (*)[WARP_SIZE + 1]) (debugBuf + (yWorkItem * WARP_SIZE) + xWorkItem);
+	__local float (*dataRow)[WARP_SIZE + 1] =
+			(__local float (*)[WARP_SIZE + 1]) &dataBlock[yWorkItem][xWorkItem];
 
 	//position the input pointer to this work-item's cell
-	//debugBuf += row * CARRY_WIDTH + col;
 	input += row * CARRY_WIDTH + col;
-	yBar += yGroup * CARRY_WIDTH + col;//top->bottom output block
-	vHat += xGroup * CARRY_HEIGHT + row0+xWorkItem;//left->right output block
-	//**bdata = *input;
-	//bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-	//**bdata = *input;
+	yBar += yGroup * CARRY_WIDTH + col;	//top->bottom output block
+	vHat += xGroup * CARRY_WIDTH + row0 + xWorkItem;	//left->right output block
 
-//pragma unroll
-	//fill the local data
-	/*
+#pragma unroll
+	//fill the local data block that's shared between work items
 	for (int i = 0; i < WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS);
-			i ++) {
-		**bdata = *input;
-		//**ddata = *input;
-		bdata = ((float (*)[WARP_SIZE + 1]) &sBlock[yWorkItem][xWorkItem] + i*SCHEDULE_OPTIMIZED_N_WARPS);
-		//bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-		input += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
+			i++) {
+		//copy WARP_SIZE+1 values over from the input
+		**dataRow = *input;
+		dataRow += SCHEDULE_OPTIMIZED_N_WARPS;
+		input += INPUT_STRIDE;
 	}
-
+	//if we're in the last few rows of work items, finish up the remaining copying
 	if (yWorkItem < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
-		**bdata = *input;
+		**dataRow = *input;
 	}
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
 	if (yWorkItem == 0) {
 
-		{   // calculate ybar (aggregate vertically) -----------
-			float(*bdata)[WARP_SIZE + 1] =
-					(float (*)[WARP_SIZE + 1]) &sBlock[0][xWorkItem];
+		{   // calculate ybar (aggregate block/group vertically) -----------
 
-			float prev = **bdata;
-			++bdata;
+			__local float(*dataRow)[WARP_SIZE + 1] =
+					(__local float (*)[WARP_SIZE + 1]) &dataBlock[0][xWorkItem];
+
+			float prev = **dataRow;
+			++dataRow;
 
 #pragma unroll
-			for (int i = 1; i < WARP_SIZE; ++i, ++bdata)
-				**bdata = prev = **bdata + prev;
+			for (int i = 1; i < WARP_SIZE; ++i, ++dataRow)
+				**dataRow = prev = **dataRow + prev;
 
 			*yBar = prev;
 		}
 
-		{   // calculate vhat (aggregate horizontally) ----------
-			__local float *bdata = sBlock[xWorkItem];
+		{   // calculate vhat (aggregate block/group horizontally) ----------
+			__local float *dataRow = dataBlock[xWorkItem];
 
-			float prev = *bdata;
-			++bdata;
+			float prev = *dataRow;
+			++dataRow;
 
 #pragma unroll
-			for (int i = 1; i < WARP_SIZE; ++i, ++bdata)
-				prev = *bdata + prev;
+			for (int i = 1; i < WARP_SIZE; ++i, ++dataRow)
+				prev = *dataRow + prev;
 
 			*vHat = prev;
 		}
 
-	}*/
+	}
 }
 
 //-- Algorithm SAT Stage 2 ----------------------------------------------------
-
+/**
+ * Aggregates the horizontal block-row-wise block column sums into column/block sums along the whole image
+ * @param[in] yBar [rowGroupCount x CARRY_WIDTH] - sums of columns in each block row
+ * @param[out] ySum [colGroupCount x rowGroupCount] - sums of rows and columns for each block
+ */
 __kernel
-void algSAT_stage2(__global float *g_ybar, __global float *g_ysum) {
+void algSAT_stage2(__global float *yBar, __global float *ySum) {
 
-	const size_t ty = get_local_id(1), tx = get_local_id(0), bx = get_group_id(
-			0), col0 = bx * MAX_WARPS + ty, col = col0 * WARP_SIZE + tx;
+	const size_t yWorkItem = get_local_id(1), xWorkItem = get_local_id(0), xGroup = get_group_id(
+			0), col0 = xGroup * MAX_WARPS + yWorkItem, col = col0 * WARP_SIZE + xWorkItem;
 
-	if (col >= c_width)
+	if (col >= CARRY_WIDTH)
 		return;
 
-	g_ybar += col;
-	float y = *g_ybar;
-	int ln = HALF_WARP_SIZE + tx;
+	yBar += col;
+	float y = *yBar;
+	int ln = HALF_WARP_SIZE + xWorkItem;
 
-	if (tx == WARP_SIZE - 1)
-		g_ysum += col0;
+	if (xWorkItem == WARP_SIZE - 1)
+		ySum += col0;
 
 	volatile __local float s_block[ MAX_WARPS][ HALF_WARP_SIZE + WARP_SIZE + 1];
 
-	if (tx < HALF_WARP_SIZE)
-		s_block[ty][tx] = 0.f;
+	if (xWorkItem < HALF_WARP_SIZE)
+		s_block[yWorkItem][xWorkItem] = 0.f;
 	else
-		s_block[ty][ln] = 0.f;
+		s_block[yWorkItem][ln] = 0.f;
 
-	for (int n = 1; n < c_n_size; ++n) {
+	for (int n = 1; n < N_ROWS; ++n) {
 
 		// calculate ysum -----------------------
+		//TODO: can't we just do loop unroll here? I mean, how do we know to stop at 16?
+		s_block[yWorkItem][ln] = y;
 
-		s_block[ty][ln] = y;
+		s_block[yWorkItem][ln] += s_block[yWorkItem][ln - 1];
+		s_block[yWorkItem][ln] += s_block[yWorkItem][ln - 2];
+		s_block[yWorkItem][ln] += s_block[yWorkItem][ln - 4];
+		s_block[yWorkItem][ln] += s_block[yWorkItem][ln - 8];
+		s_block[yWorkItem][ln] += s_block[yWorkItem][ln - 16];
 
-		s_block[ty][ln] += s_block[ty][ln - 1];
-		s_block[ty][ln] += s_block[ty][ln - 2];
-		s_block[ty][ln] += s_block[ty][ln - 4];
-		s_block[ty][ln] += s_block[ty][ln - 8];
-		s_block[ty][ln] += s_block[ty][ln - 16];
-
-		if (tx == WARP_SIZE - 1) {
-			*g_ysum = s_block[ty][ln];
-			g_ysum += c_m_size;
+		if (xWorkItem == WARP_SIZE - 1) {
+			*ySum = s_block[yWorkItem][ln];
+			ySum += N_COLUMNS;
 		}
 
 		// fix ybar -> y -------------------------
 
-		g_ybar += c_width;
-		y = *g_ybar += y;
+		yBar += CARRY_WIDTH;
+		y = *yBar += y;
 
 	}
 
 }
 
 //-- Algorithm SAT Stage 3 ----------------------------------------------------
-
+/**
+ * Aggregates the horizontal block-row-wise block column sums into column/block sums along the whole image
+ * @param[in] yBar [rowGroupCount x CARRY_WIDTH] - sums of columns in each block row
+ * @param[out] ySum [colGroupCount x rowGroupCount] - sums of rows and columns for each block
+ */
 __kernel
-void algSAT_stage3(const __global float *g_ysum, __global float *g_vhat) {
+void algSAT_stage3(const __global float *ySum, __global float *vHat) {
 
 	const size_t tx = get_local_id(0), ty = get_local_id(1), by = get_group_id(
 			1), row0 = by * MAX_WARPS + ty, row = row0 * WARP_SIZE + tx;
 
-	if (row >= c_height)
+	if (row >= CARRY_HEIGHT)
 		return;
 
-	g_vhat += row;
+	vHat += row;
 	float y = 0.f, v = 0.f;
 
 	if (row0 > 0)
-		g_ysum += (row0 - 1) * c_m_size;
+		ySum += (row0 - 1) * N_COLUMNS;
 
-	for (int m = 0; m < c_m_size; ++m) {
+	for (int m = 0; m < N_COLUMNS; ++m) {
 
 		// fix vhat -> v -------------------------
 
 		if (row0 > 0) {
-			y = *g_ysum;
-			g_ysum += 1;
+			y = *ySum;
+			ySum += 1;
 		}
 
-		v = *g_vhat += v + y;
-		g_vhat += c_height;
+		v = *vHat += v + y;
+		vHat += CARRY_HEIGHT;
 
 	}
 
@@ -209,20 +199,21 @@ void algSAT_stage4_inplace( __global float *g_inout, __global const float *g_y,
 
 	__local float s_block[ WARP_SIZE][ WARP_SIZE + 1];
 
-	float (*bdata)[WARP_SIZE + 1] = (float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
+	__local float (*bdata)[WARP_SIZE + 1] =
+			(__local float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
 
-	g_inout += (row0 + ty) * c_width + col;
+	g_inout += (row0 + ty) * CARRY_WIDTH + col;
 	if (by > 0)
-		g_y += (by - 1) * c_width + col;
+		g_y += (by - 1) * CARRY_WIDTH + col;
 	if (bx > 0)
-		g_v += (bx - 1) * c_height + row0 + tx;
+		g_v += (bx - 1) * CARRY_HEIGHT + row0 + tx;
 
 #pragma unroll
 	for (int i = 0; i < WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS);
 			i += SCHEDULE_OPTIMIZED_N_WARPS) {
 		**bdata = *g_inout;
 		bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-		g_inout += SCHEDULE_OPTIMIZED_N_WARPS * c_width;
+		g_inout += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
 	}
 	if (ty < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
 		**bdata = *g_inout;
@@ -233,8 +224,8 @@ void algSAT_stage4_inplace( __global float *g_inout, __global const float *g_y,
 	if (ty == 0) {
 
 		{   // calculate y -----------------------
-			float(*bdata)[WARP_SIZE + 1] =
-					(float (*)[WARP_SIZE + 1]) &s_block[0][tx];
+			__local float(*bdata)[WARP_SIZE + 1] = (__local float (*)[WARP_SIZE
+					+ 1]) &s_block[0][tx];
 
 			float prev;
 			if (by > 0)
@@ -265,16 +256,17 @@ void algSAT_stage4_inplace( __global float *g_inout, __global const float *g_y,
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	bdata = (float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
+	bdata = (__local float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
 
-	g_inout -= (WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS)) * c_width;
+	g_inout -= (WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS))
+			* CARRY_WIDTH;
 
 #pragma unroll
 	for (int i = 0; i < WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS);
 			i += SCHEDULE_OPTIMIZED_N_WARPS) {
 		*g_inout = **bdata;
 		bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-		g_inout += SCHEDULE_OPTIMIZED_N_WARPS * c_width;
+		g_inout += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
 	}
 	if (ty < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
 		*g_inout = **bdata;
@@ -294,20 +286,21 @@ void algSAT_stage4_not_inplace( __global float *g_out,
 			* WARP_SIZE;
 	__local float s_block[ WARP_SIZE][ WARP_SIZE + 1];
 
-	float (*bdata)[WARP_SIZE + 1] = (float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
+	__local float (*bdata)[WARP_SIZE + 1] =
+			(__local float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
 
-	g_in += (row0 + ty) * c_width + col;
+	g_in += (row0 + ty) * CARRY_WIDTH + col;
 	if (by > 0)
-		g_y += (by - 1) * c_width + col;
+		g_y += (by - 1) * CARRY_WIDTH + col;
 	if (bx > 0)
-		g_v += (bx - 1) * c_height + row0 + tx;
+		g_v += (bx - 1) * CARRY_HEIGHT + row0 + tx;
 
 #pragma unroll
 	for (int i = 0; i < WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS);
 			i += SCHEDULE_OPTIMIZED_N_WARPS) {
 		**bdata = *g_in;
 		bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-		g_in += SCHEDULE_OPTIMIZED_N_WARPS * c_width;
+		g_in += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
 	}
 	if (ty < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
 		**bdata = *g_in;
@@ -318,8 +311,8 @@ void algSAT_stage4_not_inplace( __global float *g_out,
 	if (ty == 0) {
 
 		{   // calculate y -----------------------
-			float(*bdata)[WARP_SIZE + 1] =
-					(float (*)[WARP_SIZE + 1]) &s_block[0][tx];
+			__local float(*bdata)[WARP_SIZE + 1] = (__local float (*)[WARP_SIZE
+					+ 1]) &s_block[0][tx];
 
 			float prev;
 			if (by > 0)
@@ -350,16 +343,16 @@ void algSAT_stage4_not_inplace( __global float *g_out,
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	bdata = (float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
+	bdata = (__local float (*)[WARP_SIZE + 1]) &s_block[ty][tx];
 
-	g_out += (row0 + ty) * c_width + col;
+	g_out += (row0 + ty) * CARRY_WIDTH + col;
 
 #pragma unroll
 	for (int i = 0; i < WARP_SIZE - (WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS);
 			i += SCHEDULE_OPTIMIZED_N_WARPS) {
 		*g_out = **bdata;
 		bdata += SCHEDULE_OPTIMIZED_N_WARPS;
-		g_out += SCHEDULE_OPTIMIZED_N_WARPS * c_width;
+		g_out += SCHEDULE_OPTIMIZED_N_WARPS * CARRY_WIDTH;
 	}
 	if (ty < WARP_SIZE % SCHEDULE_OPTIMIZED_N_WARPS) {
 		*g_out = **bdata;
