@@ -55,15 +55,6 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
-					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.650420349.119865529" name="sat.cl" rcbsApplicability="disable" resourcePath="sat.cl" toolsToInvoke="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1843361107.732587245">
-						<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1843361107.732587245" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1843361107"/>
-						<tool customBuildStep="true" id="org.eclipse.cdt.managedbuilder.ui.rcbs.1168861782" name="Resource Custom Build Step">
-							<inputType id="org.eclipse.cdt.managedbuilder.ui.rcbs.inputtype.1054364482" name="Resource Custom Build Step Input Type">
-								<additionalInput kind="additionalinputdependency" paths=""/>
-							</inputType>
-							<outputType id="org.eclipse.cdt.managedbuilder.ui.rcbs.outputtype.1855171794" name="Resource Custom Build Step Output Type"/>
-						</tool>
-					</fileInfo>
 					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.650420349.707315899" name="sat.cl" rcbsApplicability="override" resourcePath="src/sat.cl" toolsToInvoke="org.eclipse.cdt.managedbuilder.ui.rcbs.837095165">
 						<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1843361107.1978847232" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1843361107">
 							<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1856621540" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>

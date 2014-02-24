@@ -168,11 +168,10 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 	state.deferredReleaseMem.push_back(ySum);
 
 	//create kernels
-	cl_kernel testKernel = clCreateKernel(program, "testKernel", &errCode);
-	cl_kernel stage1 = clCreateKernel(program, "algSAT_stage1", &errCode);
-	cl_kernel stage2 = clCreateKernel(program, "algSAT_stage2", &errCode);
-	cl_kernel stage3 = clCreateKernel(program, "algSAT_stage3", &errCode);
-	cl_kernel stage4 = clCreateKernel(program, "algSAT_stage4_inplace",
+	cl_kernel stage1 = clCreateKernel(program, "computeBlockAggregates", &errCode);
+	cl_kernel stage2 = clCreateKernel(program, "verticalAggregate", &errCode);
+	cl_kernel stage3 = clCreateKernel(program, "horizontalAggregate", &errCode);
+	cl_kernel stage4 = clCreateKernel(program, "redistributeSAT",
 			&errCode);
 
 	size_t group_size_factor;
