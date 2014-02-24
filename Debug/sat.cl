@@ -25,6 +25,8 @@
 //yBar: rowGroupCount x CARRY_WIDTH
 //vHat: colGroupCount x CARRY_HEIGHT
 /**
+ *CARRY_WIDTH/WARP_SIZE blocks wide
+ *
  *Groups/Block size: WARP_SIZE X SCHEDULE_OPTIMIZED_N_WARPS
  *@param input - CARRY_WIDTH x CARRY_HEIGHT
  *@param rowGroupCount - rowGroupCount X CARRY_WIDTH
