@@ -2,7 +2,6 @@
 #define GPUDEFS_H
 
 #define WARP_SIZE 32 // Warp size (defines b x b block size where b = WS)
-
 #define HALF_WARP_SIZE 16 // Half Warp Size
 #define DEFAULT_N_WARPS 8 // Default number of warps (computational block height)
 #define CARRY_HEAVY_N_WARPS 7 // Carry-heavy number of warps (computational block height for some kernels)

@@ -34,7 +34,7 @@
  */
 __kernel
 void computeBlockAggregates(const __global float* input, __global float* yBar,
-		__global float* vHat, __global float* debugBuf) {
+		__global float* vHat) {
 
 	const size_t yWorkItem = get_local_id(1), xWorkItem = get_local_id(0),
 			yGroup = get_group_id(1), xGroup = get_group_id(0), col =
@@ -285,7 +285,7 @@ void redistributeSAT( __global float *matrix, __global const float *yBar,
 //-- Algorithm SAT Stage 4 (not-in-place) -------------------------------------
 
 __kernel
-void algSAT_stage4_not_inplace( __global float *g_out,
+void redistributeSAT_not_inplace( __global float *g_out,
 		__global const float *g_in, __global const float *g_y,
 		__global const float *g_v) {
 

@@ -285,7 +285,7 @@ void redistributeSAT( __global float *matrix, __global const float *yBar,
 //-- Algorithm SAT Stage 4 (not-in-place) -------------------------------------
 
 __kernel
-void algSAT_stage4_not_inplace( __global float *g_out,
+void redistributeSAT_not_inplace( __global float *g_out,
 		__global const float *g_in, __global const float *g_y,
 		__global const float *g_v) {
 

@@ -110,7 +110,6 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 	cl_program program = state.compileOCLProgram("sat.cl", defineOptions);
 	cl_int errCode;
 	float* preppedInOutMatrix;
-
 	bool paddingEnabled = config.carryWidth != config.width || config.carryHeight != config.height;
 	if(paddingEnabled){
 		preppedInOutMatrix = new float[config.carryWidth*config.carryHeight]();
@@ -222,7 +221,7 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 			static_cast<size_t>(config.colGroupCount
 					* SCHEDULE_OPTIMIZED_N_WARPS) };
 	size_t stage1LocalSize[] = { WARP_SIZE, SCHEDULE_OPTIMIZED_N_WARPS };
-	cl_mem stage1Args[stage1argCount] = { matrix, yBar, vHat, debugBuf };
+	cl_mem stage1Args[stage1argCount] = { matrix, yBar, vHat};
 	runKernel(stage1, queue, stage1argCount, stage1Args, workDim,
 			stage1GlobalSize, stage1LocalSize);
 	//get data back from GPU
@@ -290,7 +289,7 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 int main(int argc, char** argv) {
 // start the logs
 	shrSetLogFileName("clsat.log");
-	const int width = 16, height = 16;
+	const int width = 32, height = 32;
 	float* inOutMatrix = new float[width * height];
 	std::cout << "[clsat] Generating random input image (" << width << "x"
 			<< height << ") ... " << std::flush;

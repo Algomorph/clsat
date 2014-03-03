@@ -91,7 +91,7 @@ void algSAT_stage1(__global float* g_in, __global float* g_ybar,
 //-- Algorithm SAT Stage 2 ----------------------------------------------------
 
 __kernel
-void verticalAggregate(__global float *g_ybar, __global float *g_ysum) {
+void vertical_aggregate(__global float *g_ybar, __global float *g_ysum) {
 
 	const size_t ty = get_local_id(1), tx = get_local_id(0), bx = get_group_id(
 			0), col0 = bx * MAX_WARPS + ty, col = col0 * WARP_SIZE + tx;
@@ -142,7 +142,7 @@ void verticalAggregate(__global float *g_ybar, __global float *g_ysum) {
 //-- Algorithm SAT Stage 3 ----------------------------------------------------
 
 __kernel
-void horizontalAggregate( __global const float *g_ysum, __global float *g_vhat) {
+void horizontal_aggregate( __global const float *g_ysum, __global float *g_vhat) {
 
 	const size_t tx = get_local_id(0), ty = get_local_id(1), by = get_group_id(
 			1), row0 = by * MAX_WARPS + ty, row = row0 * WARP_SIZE + tx;
