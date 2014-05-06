@@ -65,11 +65,13 @@ void runKernel(const cl_kernel& kernel, const cl_command_queue& queue,
 		const cl_uint& argCount, cl_mem* args, const cl_uint& dim,
 		size_t* globalSize, size_t* localSize) {
 	cl_int errCode = CL_SUCCESS;
+	char kernelName[128];
 	for (cl_uint iMem = 0; iMem < argCount; iMem++) {
 		errCode = clSetKernelArg(kernel, iMem, sizeof(cl_mem),
 				(void *) (args + iMem));
 		if (errCode != CL_SUCCESS) {
-			shrLog("clSetKernelArg failed to set argument with error %d.\n",
+			cl_int err2 = clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME,128,&kernelName,NULL);
+			shrLog("clSetKernelArg failed to set argument for kernel %s with error %d.\n",kernelName,
 					errCode);
 		}
 	}
@@ -216,7 +218,7 @@ void computeSummedAreaTable(float* inOutMatrix, const int& w, const int& h,
 	state.deferredReleaseMem.push_back(debugBuf);
 
 	const cl_uint workDim = 2;
-	const cl_uint stage1argCount = 4;
+	const cl_uint stage1argCount = 3;
 	size_t stage1GlobalSize[] = { static_cast<size_t>(config.carryWidth),
 			static_cast<size_t>(config.colGroupCount
 					* SCHEDULE_OPTIMIZED_N_WARPS) };

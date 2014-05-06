@@ -34,7 +34,7 @@
  */
 __kernel
 void computeBlockAggregates(const __global float* input, __global float* yBar,
-		__global float* vHat, __global float* debugBuf) {
+		__global float* vHat) {
 
 	const size_t yWorkItem = get_local_id(1), xWorkItem = get_local_id(0),
 			yGroup = get_group_id(1), xGroup = get_group_id(0), col =
