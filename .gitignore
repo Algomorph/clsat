@@ -20,3 +20,6 @@
 *.out
 *.app
 sat.cl
+
+Debug
+Release
